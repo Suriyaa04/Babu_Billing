@@ -473,7 +473,16 @@ input:focus, select:focus, button:focus-visible{outline:2px solid var(--sky); ou
     </div>
     <div class="search-box">
       <span class="icon">🔍</span>
-      <input type="text" id="historySearch" placeholder="Search by name, door no, invoice, date" oninput="renderHistory()">
+      <input type="text" id="historySearch" placeholder="Search by name, door no, invoice, date" oninput="historyVisibleDays=HISTORY_PAGE_SIZE; renderHistory();">
+    </div>
+    <div class="datetime-row" style="margin-bottom:14px;">
+      <div class="field" style="margin-bottom:0;">
+        <label>Jump to a specific date</label>
+        <input type="date" id="historyDateFilter" onchange="historyVisibleDays=HISTORY_PAGE_SIZE; renderHistory();">
+      </div>
+      <div style="display:flex; align-items:flex-end; padding-bottom:1px;">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('historyDateFilter').value=''; renderHistory();">✕ Clear</button>
+      </div>
     </div>
     <div id="historyList"></div>
   </div>
@@ -945,6 +954,7 @@ function isYesterday(dateStr){
    ============================================================ */
 function selectHistoryTab(value, btn){
   currentHistoryTab = value;
+  historyVisibleDays = HISTORY_PAGE_SIZE; // reset pagination when switching tabs
   const container = btn.parentElement;
   container.querySelectorAll('button').forEach(b=>b.classList.remove('selected','status-pending'));
   btn.classList.add('selected');
@@ -1221,10 +1231,18 @@ function getDayLabel(dateStr){
   return formatDate(new Date(dateStr));
 }
 
+const HISTORY_PAGE_SIZE = 15; // number of day-sections shown at a time
+let historyVisibleDays = HISTORY_PAGE_SIZE;
+
 function renderHistory(){
   const query = (document.getElementById('historySearch').value || '').trim().toLowerCase();
+  const dateFilter = document.getElementById('historyDateFilter').value; // 'YYYY-MM-DD' or ''
   const bills = getBills().filter(b=>b.paymentStatus===currentHistoryTab);
   const filtered = bills.filter(b=>{
+    if(dateFilter){
+      const billDateStr = new Date(b.date).toISOString().slice(0,10);
+      if(billDateStr !== dateFilter) return false;
+    }
     if(!query) return true;
     return (b.customerName||'').toLowerCase().includes(query)
       || (b.doorNumber||'').toLowerCase().includes(query)
@@ -1234,12 +1252,17 @@ function renderHistory(){
 
   const listEl = document.getElementById('historyList');
   if(filtered.length===0){
-    const msg = currentHistoryTab==='Pending' ? 'No pending bills' : 'No completed bills yet';
-    listEl.innerHTML = `<div class="empty-state"><div class="emoji">🧾</div><b>${msg}</b>Start by creating a new bill.</div>`;
+    const msg = dateFilter
+      ? 'No bills on that date'
+      : (currentHistoryTab==='Pending' ? 'No pending bills' : 'No completed bills yet');
+    listEl.innerHTML = `<div class="empty-state"><div class="emoji">🧾</div><b>${msg}</b>${dateFilter ? 'Try a different date, or clear the filter.' : 'Start by creating a new bill.'}</div>`;
     return;
   }
 
-  // Group bills into Today / Yesterday / specific-date sections, in date order
+  // Group ALL matching bills into Today / Yesterday / specific-date sections —
+  // nothing is ever excluded here, no matter how far back it goes (a year+ of
+  // data groups exactly the same way). Only how many day-sections are
+  // *rendered at once* is limited, for performance, via Load More below.
   const sorted = [...filtered].sort((a,b)=> new Date(b.date) - new Date(a.date));
   const groups = {};
   const order = [];
@@ -1249,7 +1272,10 @@ function renderHistory(){
     groups[label].push(b);
   });
 
-  listEl.innerHTML = order.map(label=>{
+  const totalDays = order.length;
+  const visibleOrder = order.slice(0, historyVisibleDays);
+
+  const sectionsHtml = visibleOrder.map(label=>{
     const dayBills = groups[label];
     const dayTotal = dayBills.reduce((s,b)=>s+b.customerTotal, 0);
 
@@ -1281,6 +1307,19 @@ function renderHistory(){
         <span>₹${dayTotal} · ${dayBills.length} bill${dayBills.length===1?'':'s'}</span>
       </div>${rowsHtml}`;
   }).join('');
+
+  const loadMoreHtml = totalDays > historyVisibleDays
+    ? `<button class="btn btn-outline btn-sm" style="width:100%; margin-top:8px;" onclick="loadMoreHistory()">
+         ⬇️ Load older days (showing ${historyVisibleDays} of ${totalDays})
+       </button>`
+    : '';
+
+  listEl.innerHTML = sectionsHtml + loadMoreHtml;
+}
+
+function loadMoreHistory(){
+  historyVisibleDays += HISTORY_PAGE_SIZE;
+  renderHistory();
 }
 
 function markAsPaid(invoiceNo, method){
