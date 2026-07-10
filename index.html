@@ -239,6 +239,14 @@ input:focus, select:focus, button:focus-visible{outline:2px solid var(--sky); ou
 }
 .search-box .icon{position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:16px; color:var(--muted);}
 
+.history-day-header{
+  display:flex; justify-content:space-between; align-items:center;
+  margin:16px 2px 8px; padding:0 2px;
+  font-size:12.5px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:0.4px;
+}
+.history-day-header span:last-child{color:var(--sky-dark); text-transform:none; letter-spacing:0; font-weight:700;}
+.history-day-header:first-child{margin-top:2px;}
+
 .bill-item{
   background:var(--white); border-radius:var(--radius-md); padding:14px 16px;
   margin-bottom:10px; box-shadow:var(--shadow-card); border:1px solid var(--border);
@@ -367,14 +375,14 @@ input:focus, select:focus, button:focus-visible{outline:2px solid var(--sky); ou
 
     <div class="section-title"><span class="dot"></span>Today's Overview</div>
     <div class="dash-grid">
-      <div class="dash-card"><div class="dash-icon">💰</div><div class="dash-label">Today's Revenue</div><div class="dash-value" id="stat-todayRevenue">₹0</div></div>
+      <div class="dash-card" style="cursor:pointer;" onclick="goPage('dailyRevenue')"><div class="dash-icon">💰</div><div class="dash-label">Today's Revenue</div><div class="dash-value" id="stat-todayRevenue">₹0</div></div>
       <div class="dash-card"><div class="dash-icon">🧾</div><div class="dash-label">Today's Bills</div><div class="dash-value" id="stat-todayBills">0</div></div>
       <div class="dash-card"><div class="dash-icon">👕</div><div class="dash-label">Today's Garments</div><div class="dash-value" id="stat-todayGarments">0</div></div>
       <div class="dash-card"><div class="dash-icon">⏳</div><div class="dash-label">Pending Payments</div><div class="dash-value warn" id="stat-pendingPayments">₹0</div></div>
       <div class="dash-card"><div class="dash-icon">✅</div><div class="dash-label">Paid Payments</div><div class="dash-value pos" id="stat-paidPayments">₹0</div></div>
       <div class="dash-card" style="cursor:pointer;" onclick="goPage('dailyStaff')"><div class="dash-icon">🧑‍🔧</div><div class="dash-label">Today's Staff Salary</div><div class="dash-value" id="stat-todaySalary">₹0</div></div>
       <div class="dash-card" style="cursor:pointer;" onclick="goPage('dailyProfit')"><div class="dash-icon">📈</div><div class="dash-label">Today's Gross Profit</div><div class="dash-value pos" id="stat-todayProfit">₹0</div></div>
-      <div class="dash-card"><div class="dash-icon">📅</div><div class="dash-label">Monthly Revenue</div><div class="dash-value" id="stat-monthRevenue">₹0</div></div>
+      <div class="dash-card" style="cursor:pointer;" onclick="goPage('dailyRevenue')"><div class="dash-icon">📅</div><div class="dash-label">Monthly Revenue</div><div class="dash-value" id="stat-monthRevenue">₹0</div></div>
     </div>
 
     <div class="dash-grid" style="grid-template-columns:1fr; margin-top:12px;">
@@ -480,7 +488,7 @@ input:focus, select:focus, button:focus-visible{outline:2px solid var(--sky); ou
   <div class="page" id="page-reports">
     <div class="section-title"><span class="dot"></span>Today's Report</div>
     <div class="dash-grid">
-      <div class="dash-card"><div class="dash-icon">💰</div><div class="dash-label">Today's Revenue</div><div class="dash-value" id="rep-todayRevenue">₹0</div></div>
+      <div class="dash-card" style="cursor:pointer;" onclick="goPage('dailyRevenue')"><div class="dash-icon">💰</div><div class="dash-label">Today's Revenue</div><div class="dash-value" id="rep-todayRevenue">₹0</div></div>
       <div class="dash-card"><div class="dash-icon">🧾</div><div class="dash-label">Today's Bills</div><div class="dash-value" id="rep-todayBills">0</div></div>
       <div class="dash-card"><div class="dash-icon">👕</div><div class="dash-label">Today's Garments</div><div class="dash-value" id="rep-todayGarments">0</div></div>
       <div class="dash-card" style="cursor:pointer;" onclick="goPage('dailyStaff')"><div class="dash-icon">🧑‍🔧</div><div class="dash-label">Today's Staff Salary</div><div class="dash-value" id="rep-todaySalary">₹0</div></div>
@@ -502,7 +510,7 @@ input:focus, select:focus, button:focus-visible{outline:2px solid var(--sky); ou
 
     <div class="section-title" style="margin-top:18px;"><span class="dot"></span>Monthly Report</div>
     <div class="dash-grid">
-      <div class="dash-card"><div class="dash-icon">💰</div><div class="dash-label">Monthly Revenue</div><div class="dash-value" id="rep-monthRevenue">₹0</div></div>
+      <div class="dash-card" style="cursor:pointer;" onclick="goPage('dailyRevenue')"><div class="dash-icon">💰</div><div class="dash-label">Monthly Revenue</div><div class="dash-value" id="rep-monthRevenue">₹0</div></div>
       <div class="dash-card"><div class="dash-icon">🧾</div><div class="dash-label">Monthly Bills</div><div class="dash-value" id="rep-monthBills">0</div></div>
       <div class="dash-card"><div class="dash-icon">👕</div><div class="dash-label">Monthly Garments</div><div class="dash-value" id="rep-monthGarments">0</div></div>
       <div class="dash-card" style="cursor:pointer;" onclick="goPage('dailyProfit')"><div class="dash-icon">📊</div><div class="dash-label">Monthly Profit</div><div class="dash-value pos" id="rep-monthProfit">₹0</div></div>
@@ -525,6 +533,15 @@ input:focus, select:focus, button:focus-visible{outline:2px solid var(--sky); ou
       <div class="btn-row">
         <button class="btn btn-outline" onclick="goPage('staffpayments')">🧑‍🔧 Staff Payments Log</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE: DAILY REVENUE BREAKDOWN ============ -->
+  <div class="page" id="page-dailyRevenue">
+    <div class="card">
+      <div class="section-title"><span class="dot"></span>Daily Revenue (Computed from Bills)</div>
+      <p style="font-size:12px; color:var(--muted); margin-top:0;">Total customer revenue per day, across all your bills.</p>
+      <div id="dailyRevenueList"></div>
     </div>
   </div>
 
@@ -792,7 +809,7 @@ function nextInvoiceNumber(){
 const PAGE_CAPTIONS = {
   home:'Dashboard', newbill:'New Bill', history:'Billing History',
   customer:'Customer History', reports:'Reports & Analytics', settings:'Settings',
-  dailyStaff:'Daily Staff Salary', dailyProfit:'Daily Gross Profit',
+  dailyStaff:'Daily Staff Salary', dailyProfit:'Daily Gross Profit', dailyRevenue:'Daily Revenue',
   myearnings:'My Earnings Log', staffpayments:'Staff Payments Log'
 };
 
@@ -823,6 +840,7 @@ function goPage(name, opts){
   if(name==='settings') renderSettings();
   if(name==='dailyStaff') renderDailyBreakdown('staff');
   if(name==='dailyProfit') renderDailyBreakdown('profit');
+  if(name==='dailyRevenue') renderDailyBreakdown('revenue');
   if(name==='myearnings') renderMyEarnings();
   if(name==='staffpayments') renderStaffPayments();
 }
@@ -1197,6 +1215,12 @@ function renderDashboard(){
 /* ============================================================
    HISTORY PAGE
    ============================================================ */
+function getDayLabel(dateStr){
+  if(isToday(dateStr)) return 'Today';
+  if(isYesterday(dateStr)) return 'Yesterday';
+  return formatDate(new Date(dateStr));
+}
+
 function renderHistory(){
   const query = (document.getElementById('historySearch').value || '').trim().toLowerCase();
   const bills = getBills().filter(b=>b.paymentStatus===currentHistoryTab);
@@ -1215,27 +1239,47 @@ function renderHistory(){
     return;
   }
 
-  listEl.innerHTML = filtered.map(b=>{
-    const dropdown = b.paymentStatus==='Pending'
-      ? `<select class="pay-select" onclick="event.stopPropagation();" onchange="markAsPaid('${b.invoiceNo}', this.value)">
-           <option value="">Mark as Paid…</option>
-           <option value="Cash">💵 Paid — Cash</option>
-           <option value="UPI">📱 Paid — UPI</option>
-         </select>`
-      : `<div class="paid-method">via ${b.paymentMethod || '-'}</div>`;
+  // Group bills into Today / Yesterday / specific-date sections, in date order
+  const sorted = [...filtered].sort((a,b)=> new Date(b.date) - new Date(a.date));
+  const groups = {};
+  const order = [];
+  sorted.forEach(b=>{
+    const label = getDayLabel(b.date);
+    if(!groups[label]){ groups[label] = []; order.push(label); }
+    groups[label].push(b);
+  });
 
-    return `<div class="bill-item" style="align-items:flex-start;">
-      <div class="left" onclick="openCustomerFromInvoice('${b.invoiceNo}')">
-        <b>${b.customerName}</b>
-        <span>${b.invoiceNo} · ${b.dateDisplay}, ${b.timeDisplay}</span>
-        <span>${b.doorNumber || ''}</span>
-      </div>
-      <div class="right">
-        <div class="amt">₹${b.customerTotal}</div>
-        <span class="badge ${b.paymentStatus==='Paid'?'paid':'pending'}">${b.paymentStatus}</span>
-        ${dropdown}
-      </div>
-    </div>`;
+  listEl.innerHTML = order.map(label=>{
+    const dayBills = groups[label];
+    const dayTotal = dayBills.reduce((s,b)=>s+b.customerTotal, 0);
+
+    const rowsHtml = dayBills.map(b=>{
+      const dropdown = b.paymentStatus==='Pending'
+        ? `<select class="pay-select" onclick="event.stopPropagation();" onchange="markAsPaid('${b.invoiceNo}', this.value)">
+             <option value="">Mark as Paid…</option>
+             <option value="Cash">💵 Paid — Cash</option>
+             <option value="UPI">📱 Paid — UPI</option>
+           </select>`
+        : `<div class="paid-method">via ${b.paymentMethod || '-'}</div>`;
+
+      return `<div class="bill-item" style="align-items:flex-start;">
+        <div class="left" onclick="openCustomerFromInvoice('${b.invoiceNo}')">
+          <b>${b.customerName}</b>
+          <span>${b.invoiceNo} · ${b.dateDisplay}, ${b.timeDisplay}</span>
+          <span>${b.doorNumber || ''}</span>
+        </div>
+        <div class="right">
+          <div class="amt">₹${b.customerTotal}</div>
+          <span class="badge ${b.paymentStatus==='Paid'?'paid':'pending'}">${b.paymentStatus}</span>
+          ${dropdown}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="history-day-header">
+        <span>${label}</span>
+        <span>₹${dayTotal} · ${dayBills.length} bill${dayBills.length===1?'':'s'}</span>
+      </div>${rowsHtml}`;
   }).join('');
 }
 
@@ -1368,8 +1412,8 @@ function renderGarmentAnalytics(){
    ============================================================ */
 function renderDailyBreakdown(type){
   const bills = getBills();
-  const field = type==='staff' ? 'staffSalary' : 'grossProfit';
-  const listId = type==='staff' ? 'dailyStaffList' : 'dailyProfitList';
+  const field = type==='staff' ? 'staffSalary' : (type==='revenue' ? 'customerTotal' : 'grossProfit');
+  const listId = type==='staff' ? 'dailyStaffList' : (type==='revenue' ? 'dailyRevenueList' : 'dailyProfitList');
 
   const map = {};
   bills.forEach(b=>{
@@ -1819,6 +1863,7 @@ function pullFromSheet(showFeedback, usePopup){
       if(document.getElementById('page-staffpayments').classList.contains('active')) renderStaffPayments();
       if(document.getElementById('page-dailyStaff').classList.contains('active')) renderDailyBreakdown('staff');
       if(document.getElementById('page-dailyProfit').classList.contains('active')) renderDailyBreakdown('profit');
+      if(document.getElementById('page-dailyRevenue').classList.contains('active')) renderDailyBreakdown('revenue');
     })
     .catch(()=>{
       if(usePopup){
