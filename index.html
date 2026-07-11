@@ -268,6 +268,7 @@ input:focus, select:focus, button:focus-visible{outline:2px solid var(--sky); ou
   background:#FBFDFF;
 }
 .paid-method{margin-top:6px; font-size:11px; color:var(--muted); font-weight:700;}
+.progress-note{margin-top:6px; font-size:11px; color:var(--warning); font-weight:800;}
 
 .empty-state{text-align:center; padding:40px 20px; color:var(--muted);}
 .empty-state .emoji{font-size:44px; margin-bottom:12px;}
@@ -888,6 +889,28 @@ function formatDate(d){
 function formatTime(d){
   return d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true });
 }
+
+/**
+ * Google Sheets sometimes auto-converts a plain date/time TEXT string into
+ * an actual Date value, which comes back through sync looking like
+ * "2026-07-07T18:30:00.000Z" instead of "08 Jul 2026". This detects that
+ * pattern and re-formats it properly, so already-affected bills still show
+ * a clean date/time instead of a raw timestamp.
+ */
+function cleanDateText(str){
+  if(typeof str==='string' && /^\d{4}-\d{2}-\d{2}T/.test(str)){
+    const d = new Date(str);
+    if(!isNaN(d)) return formatDate(d);
+  }
+  return str || '';
+}
+function cleanTimeText(str){
+  if(typeof str==='string' && /^\d{4}-\d{2}-\d{2}T/.test(str)){
+    const d = new Date(str);
+    if(!isNaN(d)) return formatTime(d);
+  }
+  return str || '';
+}
 function setCurrentDateTime(){
   const now = new Date();
   document.getElementById('disp-date').value = formatDate(now);
@@ -1071,6 +1094,23 @@ function buildBillObject(existingInvoiceNo){
     existing = getBills().find(b=>b.invoiceNo===existingInvoiceNo) || null;
   }
 
+  // Work out how many NEW garments were just added compared to what this bill
+  // had before (e.g. an extra bag brought in later). That extra quantity gets
+  // logged against TODAY, so daily garment counts reflect the day the work
+  // actually happened — even though the bill's revenue date never changes.
+  let progressLog;
+  if(existing){
+    const prevTotal = existing.totalGarments || 0;
+    const addedToday = totals.totalGarments - prevTotal;
+    progressLog = Array.isArray(existing.progressLog) ? [...existing.progressLog] : [{ date: existing.date, qty: prevTotal }];
+    if(addedToday > 0){
+      progressLog.push({ date: new Date().toISOString(), qty: addedToday });
+    }
+  } else {
+    // brand new bill — its full quantity counts on its own date
+    progressLog = [{ date: now.toISOString(), qty: totals.totalGarments }];
+  }
+
   const bill = {
     invoiceNo: existingInvoiceNo || nextInvoiceNumber(),
     date: existing ? existing.date : now.toISOString(),
@@ -1086,6 +1126,7 @@ function buildBillObject(existingInvoiceNo){
     customerTotal: totals.custTotal,
     staffSalary: totals.staffTotal,
     grossProfit: totals.profit,
+    progressLog: progressLog,
     synced: false // set true once syncToSheet confirms it reached the sheet
   };
   return bill;
@@ -1130,6 +1171,15 @@ function generateBill(){
   syncToSheet(bill, 'CREATE');
 }
 
+/** Re-opens the invoice popup (with Share/Print) for any past bill — used from
+ *  History, whether it's Pending, Completed, or To Be Completed. */
+function viewBillInvoice(invoiceNo){
+  const bill = getBills().find(b=>b.invoiceNo===invoiceNo);
+  if(!bill){ showToast('⚠️ Bill not found'); return; }
+  renderInvoice(bill);
+  openModal('invoiceModal');
+}
+
 function renderInvoice(bill){
   const settings = getSettings();
   const itemsRows = bill.items.map(it=>{
@@ -1143,7 +1193,7 @@ function renderInvoice(bill){
     </div>
     <div class="inv-meta">
       <span>Invoice: <b>${bill.invoiceNo}</b></span>
-      <span>${bill.dateDisplay}, ${bill.timeDisplay}</span>
+      <span>${cleanDateText(bill.dateDisplay)}, ${cleanTimeText(bill.timeDisplay)}</span>
     </div>
     <div class="inv-cust">
       <div><b>Customer:</b> ${bill.customerName}</div>
@@ -1169,7 +1219,7 @@ function renderInvoice(bill){
   // Build WhatsApp text version
   let text = `*${settings.businessName}*\n`;
   text += `Invoice: ${bill.invoiceNo}\n`;
-  text += `Date: ${bill.dateDisplay}, ${bill.timeDisplay}\n\n`;
+  text += `Date: ${cleanDateText(bill.dateDisplay)}, ${cleanTimeText(bill.timeDisplay)}\n\n`;
   text += `Customer: ${bill.customerName}\n`;
   if(bill.doorNumber) text += `Door No: ${bill.doorNumber}\n`;
   if(bill.mobile) text += `Mobile: ${bill.mobile}\n`;
@@ -1193,15 +1243,36 @@ function shareWhatsApp(){
    ============================================================ */
 function computeStatsFor(filterFn){
   const bills = getBills().filter(b=>filterFn(b.date));
-  let revenue=0, count=bills.length, garments=0, salary=0, pending=0, paid=0;
+  let revenue=0, count=bills.length, salary=0, pending=0, paid=0;
   bills.forEach(b=>{
     revenue += b.customerTotal;
-    garments += b.totalGarments;
     salary += b.staffSalary;
     if(b.paymentStatus==='Pending') pending += b.customerTotal;
     else paid += b.customerTotal;
   });
+  const garments = computeGarmentsCompletedFor(filterFn);
   return { revenue, count, garments, salary, profit: revenue-salary, pending, paid };
+}
+
+/**
+ * Garment counts are sourced from each bill's progressLog — the actual day(s)
+ * garments were physically finished — NOT from the bill's single revenue date.
+ * This is what makes "2 bags yesterday, 3 bags today" correctly show 2 garments
+ * counted yesterday and 3 today, even though the whole order is one bill/one
+ * revenue figure on whichever day it's finally billed.
+ */
+function computeGarmentsCompletedFor(filterFn){
+  const bills = getBills();
+  let total = 0;
+  bills.forEach(b=>{
+    const log = Array.isArray(b.progressLog) && b.progressLog.length
+      ? b.progressLog
+      : [{ date: b.date, qty: b.totalGarments }]; // fallback for older bills with no log
+    log.forEach(entry=>{
+      if(filterFn(entry.date)) total += (entry.qty || 0);
+    });
+  });
+  return total;
 }
 
 function renderDashboard(){
@@ -1237,7 +1308,9 @@ let historyVisibleDays = HISTORY_PAGE_SIZE;
 function renderHistory(){
   const query = (document.getElementById('historySearch').value || '').trim().toLowerCase();
   const dateFilter = document.getElementById('historyDateFilter').value; // 'YYYY-MM-DD' or ''
+
   const bills = getBills().filter(b=>b.paymentStatus===currentHistoryTab);
+
   const filtered = bills.filter(b=>{
     if(dateFilter){
       const billDateStr = new Date(b.date).toISOString().slice(0,10);
@@ -1288,16 +1361,22 @@ function renderHistory(){
            </select>`
         : `<div class="paid-method">via ${b.paymentMethod || '-'}</div>`;
 
+      const editHtml = b.paymentStatus==='Pending'
+        ? `<button class="btn-sm btn-navy" style="margin-top:6px; padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); editBill('${b.invoiceNo}')">✏️ Edit / Add Garments</button>`
+        : '';
+
       return `<div class="bill-item" style="align-items:flex-start;">
         <div class="left" onclick="openCustomerFromInvoice('${b.invoiceNo}')">
           <b>${b.customerName}</b>
-          <span>${b.invoiceNo} · ${b.dateDisplay}, ${b.timeDisplay}</span>
+          <span>${b.invoiceNo} · ${cleanDateText(b.dateDisplay)}, ${cleanTimeText(b.timeDisplay)}</span>
           <span>${b.doorNumber || ''}</span>
         </div>
         <div class="right">
           <div class="amt">₹${b.customerTotal}</div>
           <span class="badge ${b.paymentStatus==='Paid'?'paid':'pending'}">${b.paymentStatus}</span>
           ${dropdown}
+          ${editHtml}
+          <button class="btn-sm btn-outline" style="margin-top:6px; padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); viewBillInvoice('${b.invoiceNo}')">🧾 View/Share</button>
         </div>
       </div>`;
     }).join('');
@@ -1320,6 +1399,31 @@ function renderHistory(){
 function loadMoreHistory(){
   historyVisibleDays += HISTORY_PAGE_SIZE;
   renderHistory();
+}
+
+/** Loads an existing Pending bill back into the New Bill form so the owner
+ *  can add more garments (e.g. a second bag brought in later) and re-save
+ *  under the SAME invoice. The original bill date/customer/payment status
+ *  are preserved; only quantities and totals get updated. */
+function editBill(invoiceNo){
+  const bill = getBills().find(b=>b.invoiceNo===invoiceNo);
+  if(!bill){ showToast('⚠️ Bill not found'); return; }
+
+  buildGarmentRows(); // fresh empty rows first
+  document.getElementById('inp-custName').value = bill.customerName || '';
+  document.getElementById('inp-doorNumber').value = bill.doorNumber || '';
+  document.getElementById('inp-mobile').value = bill.mobile || '';
+
+  // pre-fill existing quantities into the garment inputs
+  (bill.items || []).forEach(it=>{
+    const input = document.querySelector('.garment-qty-input[data-key="'+it.key+'"]');
+    if(input) input.value = it.qty;
+  });
+
+  currentDraftInvoiceNo = bill.invoiceNo;
+  recalcTotals();
+  showToast('✏️ Editing ' + bill.invoiceNo + ' — add more garments, then Save/Generate');
+  goPage('newbill');
 }
 
 function markAsPaid(invoiceNo, method){
@@ -1355,13 +1459,13 @@ function showCustomerDetail(customerName, mobile){
 
   const totalVisits = bills.length;
   const totalRevenue = bills.reduce((s,b)=>s+b.customerTotal,0);
-  const lastVisit = bills.length ? (bills[0].dateDisplay+', '+bills[0].timeDisplay) : '-';
+  const lastVisit = bills.length ? (cleanDateText(bills[0].dateDisplay)+', '+cleanTimeText(bills[0].timeDisplay)) : '-';
 
   const billsHtml = bills.map(b=>{
     return `<div class="bill-item" style="cursor:default;">
       <div class="left">
         <b>${b.invoiceNo}</b>
-        <span>${b.dateDisplay}, ${b.timeDisplay}</span>
+        <span>${cleanDateText(b.dateDisplay)}, ${cleanTimeText(b.timeDisplay)}</span>
       </div>
       <div class="right">
         <div class="amt">₹${b.customerTotal}</div>
@@ -1973,3 +2077,4 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+
